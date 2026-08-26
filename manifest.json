@@ -1,0 +1,21 @@
+{
+  "background_color": "#faf8f2",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "All Products Calculator",
+  "orientation": "portrait",
+  "scope": "/All-Products-Calculator/",
+  "short_name": "All Products",
+  "start_url": "/All-Products-Calculator/",
+  "theme_color": "#173b2b",
+  "description": "Calculate product prices, discounts, VP, quantities, and totals easily.",
+  "id": "all-products-calculator",
+  "lang": "en",
+  "categories": [
+    "business",
+    "health",
+    "health &amp; fitness",
+    "productivity",
+    "shopping"
+  ]
+}
