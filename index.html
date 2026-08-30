@@ -3,11 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GS Nutrition Center – Price Calculator</title>
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#173b2b">
+<title>GS Nutrition Center — Price Calculator</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?...">
+<link rel="manifest" href="manifest.json">
 <style>
   :root{
     --forest:#173B2B;
@@ -143,6 +142,10 @@
     font-family:'Inter',sans-serif;font-weight:600;
   }
   .clear-btn:hover{background:#1E4A35;}
+  .download-btn{
+    background:var(--mint);border:1.5px solid var(--mint);color:var(--forest-deep);
+  }
+  .download-btn:hover{background:#69C79A;}
   .no-results{padding:26px;text-align:center;color:var(--ink-soft);font-size:14px;}
   @media(max-width:640px){
     thead th:nth-child(3),tbody td:nth-child(3){display:none;}
@@ -186,9 +189,9 @@
           <th>Product</th>
           <th class="vp-col">VP</th>
           <th>MRP</th>
-          <th id="priceHeader">Price</th>
+          <th id="priceHeader">Final Price</th>
           <th>Qty</th>
-          <th>Line total</th>
+          <th>Profit</th>
         </tr>
       </thead>
       <tbody id="tbody"></tbody>
@@ -204,7 +207,7 @@
         <div class="value" id="totalMrp">₹0</div>
       </div>
       <div class="stat savings">
-        <div class="label">You save</div>
+        <div class="label">Profit</div>
         <div class="value" id="totalSavings">₹0</div>
       </div>
       <div class="stat pay">
@@ -216,6 +219,7 @@
         <div class="value" id="totalVp">0</div>
       </div>
     </div>
+    <button class="clear-btn download-btn" id="downloadBtn">⬇ Download</button>
     <button class="clear-btn" id="clearBtn">Clear all</button>
   </div>
 
@@ -269,7 +273,7 @@ let currentTier = "mrp";
 const qty = {};
 
 const tbody = document.getElementById('tbody');
-const tierLabels = {mrp:"MRP", p13:"13% price", p25:"25% price", p35:"35% price", p42:"42% price", p50:"50% price"};
+const tierLabels = {mrp:"Final Price (MRP)", p13:"Final Price (13%)", p25:"Final Price (25%)", p35:"Final Price (35%)", p42:"Final Price (42%)", p50:"Final Price (50%)"};
 
 function fmt(n){ return '₹' + Math.round(n).toLocaleString('en-IN'); }
 
@@ -306,13 +310,15 @@ function recalcAll(){
   document.querySelectorAll('.qty-input').forEach(input => {
     const i = input.dataset.idx;
     const q = parseInt(input.value) || 0;
-    const price = products[i][currentTier];
+    const p = products[i];
+    const price = p[currentTier];
     const lineTotal = price * q;
-    document.querySelector(`.line-total[data-idx="${i}"]`).textContent = fmt(lineTotal);
+    const profit = (p.mrp - price) * q;
+    document.querySelector(`.line-total[data-idx="${i}"]`).textContent = fmt(profit);
     if(q > 0){
-      totalMrp += products[i].mrp * q;
+      totalMrp += p.mrp * q;
       totalPay += lineTotal;
-      totalVp += products[i].vp * q;
+      totalVp += p.vp * q;
       count += q;
     }
   });
@@ -365,6 +371,84 @@ document.getElementById('searchBox').addEventListener('input', e => {
 document.getElementById('clearBtn').addEventListener('click', () => {
   document.querySelectorAll('.qty-input').forEach(input => input.value = 0);
   recalcAll();
+});
+
+document.getElementById('downloadBtn').addEventListener('click', () => {
+  const rows = [];
+  let totalMrp = 0, totalPay = 0, totalVp = 0;
+
+  document.querySelectorAll('.qty-input').forEach(input => {
+    const i = input.dataset.idx;
+    const q = parseInt(input.value) || 0;
+    if(q <= 0) return;
+    const p = products[i];
+    const price = p[currentTier];
+    const lineTotal = price * q;
+    const profit = (p.mrp - price) * q;
+    totalMrp += p.mrp * q;
+    totalPay += lineTotal;
+    totalVp += p.vp * q;
+    rows.push({name:p.name, vp:p.vp, mrp:p.mrp, price, q, profit});
+  });
+
+  if(rows.length === 0){
+    alert('Add a quantity for at least one product before downloading.');
+    return;
+  }
+
+  const tierLabel = tierLabels[currentTier];
+  const today = new Date().toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
+
+  const rowsHtml = rows.map(r => `
+    <tr>
+      <td>${r.name}</td>
+      <td style="text-align:right;">${r.vp}</td>
+      <td style="text-align:right;">${fmt(r.mrp)}</td>
+      <td style="text-align:right;">${fmt(r.price)}</td>
+      <td style="text-align:center;">${r.q}</td>
+      <td style="text-align:right;font-weight:700;">${fmt(r.profit)}</td>
+    </tr>
+  `).join('');
+
+  const receiptHtml = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>GS Nutrition Center — Order Summary</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;color:#1D2622;max-width:700px;margin:30px auto;padding:0 20px;}
+  h1{color:#173B2B;margin-bottom:2px;}
+  .sub{color:#5C6B63;font-size:13px;margin-bottom:20px;}
+  table{width:100%;border-collapse:collapse;font-size:14px;margin-top:10px;}
+  th{background:#173B2B;color:#fff;padding:8px 10px;text-align:left;font-size:12px;text-transform:uppercase;}
+  th:not(:first-child){text-align:right;}
+  td{padding:8px 10px;border-bottom:1px solid #E1E3DC;}
+  tfoot td{font-weight:700;border-top:2px solid #173B2B;border-bottom:none;padding-top:12px;}
+  .grand{font-size:16px;color:#173B2B;}
+  .vp-total{color:#B8862E;}
+  @media print{ body{margin:0;padding:15px;} }
+</style></head>
+<body>
+  <h1>GS Nutrition Center</h1>
+  <div class="sub">Herbalife order summary — Presented by Coach Yogesh &nbsp;|&nbsp; Tier: ${tierLabel} &nbsp;|&nbsp; ${today}</div>
+  <table>
+    <thead><tr><th>Product</th><th>VP</th><th>MRP</th><th>Price</th><th>Qty</th><th>Profit</th></tr></thead>
+    <tbody>${rowsHtml}</tbody>
+    <tfoot>
+      <tr><td colspan="5">MRP total</td><td style="text-align:right;">${fmt(totalMrp)}</td></tr>
+      <tr><td colspan="5">Profit</td><td style="text-align:right;color:#2D8659;">${fmt(totalMrp - totalPay)}</td></tr>
+      <tr><td colspan="5" class="grand">Payable total</td><td style="text-align:right;" class="grand">${fmt(totalPay)}</td></tr>
+      <tr><td colspan="5" class="vp-total">Total VP</td><td style="text-align:right;" class="vp-total">${totalVp.toFixed(2).replace(/\.00$/,'')}</td></tr>
+    </tfoot>
+  </table>
+</body></html>`;
+
+  const blob = new Blob([receiptHtml], {type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `GS-Nutrition-Order-${today.replace(/\s/g,'-')}.html`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 });
 </script>
 
